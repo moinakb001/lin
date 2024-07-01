@@ -41,11 +41,11 @@ namespace store {
         blake3_hasher hasher;
         blake3_hasher_init(&hasher);
         auto head = get_file_header(dirfd, path);
-        blake3_hasher_update(&hasher, head.meta, sizeof(head.meta));
+        blake3_hasher_update(&hasher, &head.meta, sizeof(head.meta));
         u8 * buf = (u8*)mmap(0, head.size, PROT_READ, MAP_PRIVATE, head.fd, 0);
         blake3_hasher_update(&hasher, buf, head.size);
         munmap(buf, head.size);
-        close(fd);
+        close(head.fd);
         blake3_hasher_finalize(&hasher, (uint8_t *) ret.hash, sizeof(ret.hash));
         return ret;
     }
@@ -80,7 +80,8 @@ namespace store {
     }
     u64 insert_into_tree(filehash_node_t **tree, filehash_node_t node)
     {
-        filehash_node_t *anode;
+        filehash_node_t *anode = (filehash_node_t *)malloc(sizeof(filehash_node_t));
+        memcpy(anode, &node, sizeof(filehash_node_t));
         u64 inx = 1;
         while ((*tree) != NULL)
         {
@@ -100,29 +101,33 @@ namespace store {
         auto dir = fdopendir(hdr.fd);
         auto dent = readdir64(dir);
         filehash_node_t *node = NULL;
+        u64 height = 1;
         while(dent != NULL)
         {
             buf_t<u8> str;
-            str.arr = dent.d_name;
-            str.num = strlen(str.arr);
+            if(is_useless_path(dent->d_name)){
+                dent = readdir64(dir);
+                continue;
+            }
+            str.arr = (u8*)dent->d_name;
+            str.num = strlen(dent->d_name);
             filehash_node_t fn{};
             fn.name = hash_string(str);
-            u64 height = 1;
-            switch(dent.d_type)
+            switch(dent->d_type)
             {
                 case DT_REG:
                 {
                     auto path = relocate_file(hdr.fd, str);
-                    symlink(path.path, str.arr);
+                    symlinkat((char*)path.path, hdr.fd, (char *) str.arr);
                     fn.content = path_to_hash(path);
                     u64 ht = insert_into_tree(&node, fn);
                     height = height > ht ? height : ht;
                     break;
                 }
-                case DT_REG:
+                case DT_DIR:
                 {
                     auto path = relocate_dir(hdr.fd, str);
-                    symlink(path.path, str.arr);
+                    symlinkat((char*)path.path, hdr.fd, (char*) str.arr);
                     fn.content = path_to_hash(path);
                     u64 ht = insert_into_tree(&node, fn);
                     height = height > ht ? height : ht;
@@ -133,6 +138,7 @@ namespace store {
         }
         blake3_hasher hasher;
         blake3_hasher_init(&hasher);
+        blake3_hasher_update(&hasher, &hdr.meta, sizeof(hdr.meta));
         filehash_node_t *stack[height];
         u64 ptr = 1;
         stack[0] = node;
@@ -152,7 +158,7 @@ namespace store {
             if (nr)
             {
                 blake3_hasher_update(&hasher, cur->name.hash, sizeof(cur->name.hash));
-                blake3_hasher_update(&hasher, cur->contents.hash, sizeof(cur->contents.hash));
+                blake3_hasher_update(&hasher, cur->content.hash, sizeof(cur->content.hash));
                 if(cur->right)
                 {
                     stack[ptr] = cur->right;
@@ -163,8 +169,9 @@ namespace store {
             }
             prev = cur;
             ptr--;
+            free(prev);
         }
-        blake3_hasher_finalize(&hasher, &sshash.hash, sizeof(sshash));
+        blake3_hasher_finalize(&hasher, (uint8_t *) sshash.hash, sizeof(sshash));
         auto cstr = (char *) __builtin_alloca(path.num + 1);
         memcpy(cstr, path.arr, path.num);
         cstr[path.num] = 0;

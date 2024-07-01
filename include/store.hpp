@@ -18,12 +18,12 @@ namespace store
         s64          uid;
         s64          gid;
         s64          mode;
-    }
-    constexpr u8 translate_path_char(char x)
+    };
+    static inline u8 translate_path_char(char x)
     {
-        if(x >='a' && x <= 'z')name
+        if(x >='a' && x <= 'z')
         {
-            return (u8)(x - 'a');
+            return ((u8)(x - 'a')) + 10;
         }
         if(x >='0' && x <= '9')
         {
@@ -31,7 +31,7 @@ namespace store
         }
         return 0;
     }
-    constexpr blake_hash_t path_to_hash(store_path_t path)
+    static inline blake_hash_t path_to_hash(store_path_t path)
     {
         blake_hash_t ret;
         for(u64 i = 0; i < BLAKE3_OUT_LEN; i++)
@@ -41,7 +41,7 @@ namespace store
         }
         return ret;
     }
-    constexpr store_path_t hash_to_path(blake_hash_t hash)
+    static inline store_path_t hash_to_path(blake_hash_t hash)
     {
         store_path_t ret;
         ret.path[0] = '/';
@@ -60,7 +60,7 @@ namespace store
         return ret;
     }
 
-    constexpr s8 hash_cmp(blake_hash_t s1, blake_hash_t s2)
+    static inline s8 hash_cmp(blake_hash_t s1, blake_hash_t s2)
     {
         u64 *ptr1 = (u64*) &s1.hash;
         u64 *ptr2 = (u64*) &s2.hash;
@@ -77,7 +77,7 @@ namespace store
         blake_hash_t ret;
         blake3_hasher hasher;
         blake3_hasher_init(&hasher);
-        blake3_hasher_update(&hasher, x, num);
+        blake3_hasher_update(&hasher, buf.arr, buf.num);
         blake3_hasher_finalize(&hasher, (uint8_t *) ret.hash, sizeof(ret.hash));
         return ret;
 

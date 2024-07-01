@@ -28,13 +28,14 @@
                 ];
                 blakeSPaths = builtins.concatStringsSep "" (builtins.map (x: " lib/" + x) blake3SFiles);
                 blakePaths = blakeSPaths + blakeCPaths;
+                opt = "-O0";
             in ''
-                clang -static -emit-llvm -c -Iinclude/ ${blakeCPaths}
-                clang++ -static -emit-llvm -c -o main.bc -Iinclude ./src/main.cpp
+                clang ${opt} -g -static -emit-llvm -c -Iinclude/ ${blakeCPaths}
+                clang++ ${opt} -g -static -emit-llvm -c -o main.bc -Iinclude ./src/main.cpp
                 llvm-link *.bc -o out.bc
                 opt --internalize-public-api-list=main -passes=internalize,dce -o opt.bc out.bc
-                clang++ -O2 -static -c opt.bc -o out.o
-                gcc -O2 -static out.o ${blakeSPaths} -o lin -lc -v
+                clang++ ${opt} -g -static -c opt.bc -o out.o
+                gcc ${opt} -g -static out.o ${blakeSPaths} -o lin -lc -v
                 '';
             installPhase = "mkdir -p $out/bin; install -t $out/bin lin";
         };

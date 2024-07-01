@@ -13,9 +13,34 @@
 
 #include "store.cpp"
 
-int main()
+extern "C" {
+    void *__memcpy_chk(void *dest, const void *src,
+              size_t copy_amount, size_t dest_len)
+    {
+        u8 *d = (u8*) dest;
+        u8 *c = (u8*) src;
+        for(u64 i = 0; i < copy_amount; i++)
+        {
+            d[i] = c[i];
+        }
+        return dest;
+    }
+    void *__strcat_chk(char *a, char *b, u64 len)
+    {
+        return strcat(a, b);
+    }
+};
+
+
+int main( int argc, char ** argv)
 {
-    auto pp = relocate_dir("/alc");
+    printf("here2 %d\n", argc);
+    if (argc == 1)
+    {
+        printf("here1 %d\n", argc);
+    }
+    buf_t<u8> str = {(u8*) argv[1], store::strlen(argv[1])};
+    auto pp = store::relocate_dir(AT_FDCWD, str);
     printf("%s\n", pp.path);
     return 0;
 }
