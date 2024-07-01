@@ -34,10 +34,9 @@ extern "C" {
 
 int main( int argc, char ** argv)
 {
-    printf("here2 %d\n", argc);
-    if (argc == 1)
+    if (argc < 2)
     {
-        printf("here1 %d\n", argc);
+        return -1;
     }
     buf_t<u8> str = {(u8*) argv[1], store::strlen(argv[1])};
     auto pp = store::relocate_dir(AT_FDCWD, str);
