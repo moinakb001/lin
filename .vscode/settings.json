@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "blake3_avx512.c": "cpp",
-        "blake3_dispatch.c": "cpp"
-    }
-}
